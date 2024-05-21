@@ -1,0 +1,104 @@
+version: '3.9'
+services:
+  redis:
+    container_name: gigmaster_redis
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --loglevel warning
+    volumes:
+      - ./docker-volumes/cache:/data
+
+  mongodb:
+    container_name: gigmaster_mongodb
+    image: mongo:latest
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./docker-volumes/data:/data/db
+  
+  mysql:
+    container_name: gigmaster_mysql
+    image: mysql:latest
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=gigmaster_auth
+      - MYSQL_USER=gigmaster
+      - MYSQL_PASSWORD gigmaster
+    volumes:
+      - ./docker-volumes/mysql:/var/lib/mysql
+
+  postgres:
+    container_name: gigmaster_postgres
+    image: postgres:latest
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=gigmaster
+      - POSTGRES_PASSWORD=gigmaster
+      - POSTGRES_DB=gigmaster_reviews
+    volumes:
+      - ./docker-volumes/postgres:/var/lib/postgresql/data
+  
+  rabbitmq:
+    container_name: gigmaster_rabbitmq
+    image: rabbitmq:3.13.2-management-alpine
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  
+  elasticsearch:
+    container_name: gigmaster_elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    restart: always
+    environment:
+      - ES_JAVA_OPTS=-Xmx1g -Xms1g
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - network.host=0.0.0.0
+      - transport.host=127.0.0.1
+      - http.host=0.0.0.0
+      - xpack.security.enabled=true
+      - xpack.security.authc.api_key.enabled=true
+      - xpack.monitoring.collection.enabled=true
+      - xpack.security.enrollment.enabled=true
+      - xpack.security.authc.token.enabled=true
+      - ELASTIC_PASSWORD=admin1234
+    ports:
+      - 9300:9300
+      - 9200:9200
+    volumes:
+      - ./docker-volumes/elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - elastic
+  
+  kibana:
+    container_name: gigmaster_kibana
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    restart: always
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=kibana
+      - ELASTICSEARCH_SERVICEACCOUNT_TOKEN=AAEAAWVsYXN0aWMva2liYW5hL2dpZ21hc3Rlci1raWJhbmE6bENGMU50MmlRbEd0b3JCUzlHOEFqZw
+      - XPACK_FLEET_AGENTS_ELASTICSEARCH_HOSTS=["http://elasticsearch:9200"]
+    volumes:
+      - ./kibana.yml/:/usr/share/kibana/config/kibana.yml
+    networks:
+      - elastic
+    depends_on:
+      - elasticsearch
+
+
+networks:
+  elastic:
+    name: elastic
